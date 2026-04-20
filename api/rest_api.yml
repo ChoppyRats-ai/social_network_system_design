@@ -1,0 +1,260 @@
+openapi: 3.0.3
+info:
+  title: Social Network API
+  version: 1.0.0
+  description: REST API for VK-like social network
+
+paths:
+  /users/{userId}:
+    get:
+      summary: Get user profile
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User identifier
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User profile returned successfully
+        '404':
+          description: User not found
+  
+  /users/{userId}/friends:
+    get:
+      summary: Get user's friends
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User identifier
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User's friend returned successfully
+        '404':
+          description: User or his friends not found
+
+    post:
+      summary: Add friend
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                friendId:
+                  type: integer
+              required:
+                - friendId
+      responses:
+        '201':
+          description: Friend added
+        '404':
+          description: User not found
+
+  /users/{userId}/friends/{friendId}:
+    delete:
+      summary: Remove friend
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User identifier
+          schema:
+            type: integer
+        - name: friendId
+          in: path
+          required: true
+          description: Friend's identifier
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Friend removed successfully
+        '404':
+          description: User or friend not found
+
+  /posts:
+    post:
+      summary: Create post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authorId:
+                  type: integer
+                text:
+                  type: string
+                mediaIds:
+                  type: array
+                  items:
+                    type: integer
+              required:
+                - authorId
+                - text
+      responses:
+        '201':
+          description: Post created
+        '404':
+          description: User not found
+
+  /media:
+    post:
+      summary: add media
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: Media uploaded successfully
+
+
+  /feed:
+    get:
+      summary: Get home feed
+      responses:
+        '200':
+          description: Feed returned successfully
+
+
+  /users/{userId}/posts:
+    get:
+      summary: Get user posts
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User identifier
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User's posts returned successfully
+        '404':
+          description: User not found
+
+  /dialogs:
+    get:
+      summary: Get dialogs
+      responses:
+        '200':
+          description: Dialogs returned successfully
+
+  /chats:
+    get:
+      summary: Get chats
+      responses:
+        '200':
+          description: Chats returned successfully
+
+  /dialogs/{dialogId}/messages:
+    get:
+      summary: Get dialog messages
+      parameters:
+        - name: dialogId
+          in: path
+          required: true
+          description: Dialog identifier
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Messages returned successfully
+        '404':
+          description: Dialog not found
+
+
+    post:
+      summary: Send message to dialog
+      parameters:
+        - name: dialogId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                senderId:
+                  type: integer
+                text:
+                  type: string
+              required:
+                - senderId
+                - text
+      responses:
+        '201':
+          description: Message sent successfully
+        '404':
+          description: Dialog not found
+    
+
+  /chats/{chatId}/messages:
+    get:
+      summary: Get chat messages
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          description: Chat identifier
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Messages returned successfully
+        '404':
+          description: Chat not found
+
+
+    post:
+      summary: Send message to chat
+      parameters:
+        - name: chatId
+          in: path
+          required: true
+          description: Chat identifier
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                senderId:
+                  type: integer
+                text:
+                  type: string
+              required:
+                - senderId
+                - text
+      responses:
+        '201':
+          description: Message sent successfully
+        '404':
+          description: Chat not found
