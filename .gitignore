@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# IDE (IntelliJ / WebStorm / PyCharm)
+.idea/
+
+# Дополнительно (на всякий случай для вложенных папок)
+**/.DS_Store
