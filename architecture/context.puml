@@ -1,0 +1,20 @@
+@startuml SocialNetworkSystemContext
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Social Network - System Context
+
+Person(user, "User", "A social network user from the CIS region")
+Person(admin, "Admin", "Operates support, moderation, and incident handling")
+
+System(social_network, "Social Network", "Allows users to manage profiles, friends, posts, feeds, media, private messages, group chats, and notifications")
+
+System_Ext(push_provider, "Push Notification Provider", "Delivers notifications about new messages and user activity")
+System_Ext(media_cdn, "Media CDN", "Distributes uploaded photos, audio, and video to users")
+
+Rel(user, social_network, "Uses profiles, friends, posts, feeds, media, and messages", "HTTPS")
+Rel(admin, social_network, "Manages support and moderation workflows", "HTTPS")
+Rel(social_network, push_provider, "Sends push notifications", "HTTPS")
+Rel(social_network, media_cdn, "Publishes and serves media files", "HTTPS")
+
+SHOW_LEGEND()
+@enduml

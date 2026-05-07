@@ -1,0 +1,54 @@
+@startuml SocialNetworkContainer
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Social Network - Container Diagram
+
+Person(user, "User", "A social network user from the CIS region")
+
+System_Boundary(social_network, "Social Network") {
+    Container(api_gateway, "API Gateway + LB", "Gateway", "Routes requests, validates auth tokens, applies rate limits")
+
+    Container(social_backend, "Social Backend", "Backend service", "Profiles, friends, posts, comments, likes, counters")
+    Container(feed_service, "Feed Service", "Backend service", "Builds and returns home feeds")
+    Container(messaging_service, "Messaging Service", "Backend service", "Private messages, group chats, read status")
+    Container(media_service, "Media Service", "Backend service", "Uploads and validates media files")
+    Container(notification_worker, "Notification Worker", "Worker", "Consumes events and sends push notifications")
+
+    ContainerDb(main_db, "Main DB", "PostgreSQL", "users, relationships, posts, comments, likes, media metadata")
+    ContainerDb(redis, "Redis Cluster", "Redis", "hot profiles, hot posts, friendship checks, counters, rate limits")
+    ContainerDb(feed_store, "Feed Store", "Redis", "user_feed and home_feed post id lists")
+    ContainerDb(message_db, "Message DB", "NoSQL", "messages, chats, chat_members, read_status; sharded by chat_id")
+    ContainerDb(blob_storage, "Blob Storage", "S3-compatible storage", "media files")
+    ContainerQueue(kafka, "Kafka", "Event bus", "post_created, comment_created, message_sent and notification events")
+}
+
+System_Ext(cdn, "CDN", "Delivers media files to users")
+System_Ext(push_provider, "Push Provider", "Delivers push notifications")
+
+Rel(user, api_gateway, "Uses social network API", "HTTPS")
+Rel(user, cdn, "Downloads media files", "HTTPS")
+
+Rel(api_gateway, social_backend, "Reads/writes profiles, friends, posts, comments, likes", "HTTPS")
+Rel(api_gateway, feed_service, "Gets home feed", "HTTPS")
+Rel(api_gateway, messaging_service, "Sends and reads messages", "HTTPS")
+Rel(api_gateway, media_service, "Uploads media files", "HTTPS")
+
+Rel(social_backend, main_db, "Reads/writes source of truth")
+Rel(social_backend, redis, "Reads/writes hot data")
+Rel(social_backend, kafka, "Publishes domain events")
+
+Rel(feed_service, feed_store, "Reads/writes user feeds")
+Rel(kafka, feed_service, "Delivers feed events")
+
+Rel(messaging_service, message_db, "Reads/writes messages and chats")
+Rel(messaging_service, kafka, "Publishes message events")
+Rel(kafka, messaging_service, "Delivers async message events")
+
+Rel(media_service, blob_storage, "Stores media files")
+Rel(blob_storage, cdn, "Serves media through")
+
+Rel(kafka, notification_worker, "Delivers notification events")
+Rel(notification_worker, push_provider, "Sends push notifications")
+
+SHOW_LEGEND()
+@enduml

@@ -1,281 +1,176 @@
-# Social Network System Design
+# Social Network - System Design
 
-Проект по системному дизайну социальной сети, похожей на ВКонтакте. В репозитории описаны основные пользовательские сценарии, REST API и схема базы данных для хранения профилей, постов, медиа, сообщений и отношений между пользователями.
+Social Network is a VK-like social network for users from the CIS region. The service allows users to manage profiles, friends, posts, media, feeds, private messages, group chats, and notifications.
 
-## Цель проекта
+### Functional requirements:
 
-Спроектировать базовую архитектуру социальной сети и зафиксировать ключевые контракты системы:
+* view user profile
+* add and remove friends
+* view friend list
+* create and view posts
+* upload media files for posts
+* view home feed
+* view posts of a specific user
+* view dialogs and group chats
+* send and read text messages
+* track message read status
+* notify users about new messages
+* track user online / offline status
 
-- REST API для работы с пользователями, друзьями, постами, медиа, лентой и сообщениями;
-- ER-модель базы данных для основных доменных сущностей;
-- подходы к масштабированию хранения данных через репликацию и шардирование.
+### Non-functional requirements:
 
-## Функциональные возможности
+* 70 000 000 DAU
+* 100 000 000 MAU
+* availability 99.95%
+* maximum message size is 1000 characters
+* maximum chat size is 1000 users
+* system is focused on users from the CIS region
+* on average, each user sends 20 messages per day
+* on average, each user creates 0.1 posts per day
+* on average, each user views feed 20 times per day
+* messages are stored for 5 years
 
-Проектируемая система поддерживает следующие сценарии:
+## Design overview
 
-- просмотр анкеты пользователя;
-- добавление и удаление друзей;
-- просмотр списка друзей;
-- публикация постов;
-- загрузка медиафайлов;
-- просмотр домашней ленты и постов конкретного пользователя;
-- просмотр диалогов и групповых чатов;
-- отправка и чтение сообщений;
-- хранение лайков, просмотров, комментариев и хэштегов;
-- хранение разных типов отношений между пользователями.
+For system design I have used [C4 model](https://c4model.com/). The design does not go below the second C4 level:
 
-## Функциональные требования
+* Level 1. System context diagram
+* Level 2. Container diagram
 
-- поддерживаем анкеты пользователей;
-- поддерживаем друзей и подписчиков;
-- поддерживаем создание и просмотр постов;
-- поддерживаем загрузку медиафайлов для постов;
-- поддерживаем домашнюю ленту постов;
-- поддерживаем личные сообщения и групповые чаты;
-- поддерживаем прочитанность сообщений;
-- в сообщениях поддерживаем только текст;
-- поддерживаем уведомления пользователей о новых сообщениях;
-- поддерживаем статусы пользователей: онлайн / оффлайн.
+Level 1 diagram is described with PlantUML and can be opened in [PlantUML Online Editor](https://www.plantuml.com/plantuml/uml/) without installing anything locally.
 
-## Нефункциональные требования
+Level 1. System context diagram: [`architecture/context.puml`](architecture/context.puml)
 
-- DAU: `30 000 000`;
-- availability: `99.95%`;
-- response time на создание поста: до `1 секунды`;
-- response time на получение ленты: до `2 секунд`;
-- response time на отправку сообщения: до `1 секунды`;
-- response time на получение сообщений: до `5 секунд`;
-- максимальный размер сообщения: `1000 символов`;
-- максимальное количество пользователей в чате: `1000`;
-- поддерживаем пользователей из СНГ;
-- в среднем пользователь пишет `10 сообщений` в день;
-- в среднем пользователь создаёт `0.05 поста` в день;
-- в среднем пользователь читает ленту `10 раз` в день;
-- сообщения храним `5 лет`;
-- для долговременного хранения сообщений используем `HDD`;
-- для горячих данных, индексов и кэшей можно использовать `SSD`.
+```plantuml
+@startuml SocialNetworkSystemContext
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
 
-## Структура репозитория
+title Social Network - System Context
 
-```text
-.
-├── api/
-│   └── rest_api.yml
-├── database/
-│   └── schema.dbml
-└── README.md
+Person(user, "User", "A social network user from the CIS region")
+Person(admin, "Admin", "Operates support, moderation, and incident handling")
+
+System(social_network, "Social Network", "Allows users to manage profiles, friends, posts, feeds, media, private messages, group chats, and notifications")
+
+System_Ext(push_provider, "Push Notification Provider", "Delivers notifications about new messages and user activity")
+System_Ext(media_cdn, "Media CDN", "Distributes uploaded photos, audio, and video to users")
+
+Rel(user, social_network, "Uses profiles, friends, posts, feeds, media, and messages", "HTTPS")
+Rel(admin, social_network, "Manages support and moderation workflows", "HTTPS")
+Rel(social_network, push_provider, "Sends push notifications", "HTTPS")
+Rel(social_network, media_cdn, "Publishes and serves media files", "HTTPS")
+
+SHOW_LEGEND()
+@enduml
+```
+
+Level 2. Container diagram:
+
+[`architecture/container.puml`](architecture/container.puml)
+
+```plantuml
+@startuml SocialNetworkContainer
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Social Network - Container Diagram
+
+Person(user, "User", "A social network user from the CIS region")
+
+System_Boundary(social_network, "Social Network") {
+    Container(api_gateway, "API Gateway + LB", "Gateway", "Routes requests, validates auth tokens, applies rate limits")
+
+    Container(social_backend, "Social Backend", "Backend service", "Profiles, friends, posts, comments, likes, counters")
+    Container(feed_service, "Feed Service", "Backend service", "Builds and returns home feeds")
+    Container(messaging_service, "Messaging Service", "Backend service", "Private messages, group chats, read status")
+    Container(media_service, "Media Service", "Backend service", "Uploads and validates media files")
+    Container(notification_worker, "Notification Worker", "Worker", "Consumes events and sends push notifications")
+
+    ContainerDb(main_db, "Main DB", "PostgreSQL", "users, relationships, posts, comments, likes, media metadata")
+    ContainerDb(redis, "Redis Cluster", "Redis", "hot profiles, hot posts, friendship checks, counters, rate limits")
+    ContainerDb(feed_store, "Feed Store", "Redis", "user_feed and home_feed post id lists")
+    ContainerDb(message_db, "Message DB", "NoSQL", "messages, chats, chat_members, read_status; sharded by chat_id")
+    ContainerDb(blob_storage, "Blob Storage", "S3-compatible storage", "media files")
+    ContainerQueue(kafka, "Kafka", "Event bus", "post_created, comment_created, message_sent and notification events")
+}
+
+System_Ext(cdn, "CDN", "Delivers media files to users")
+System_Ext(push_provider, "Push Provider", "Delivers push notifications")
+
+Rel(user, api_gateway, "Uses social network API", "HTTPS")
+Rel(user, cdn, "Downloads media files", "HTTPS")
+
+Rel(api_gateway, social_backend, "Reads/writes profiles, friends, posts, comments, likes", "HTTPS")
+Rel(api_gateway, feed_service, "Gets home feed", "HTTPS")
+Rel(api_gateway, messaging_service, "Sends and reads messages", "HTTPS")
+Rel(api_gateway, media_service, "Uploads media files", "HTTPS")
+
+Rel(social_backend, main_db, "Reads/writes source of truth")
+Rel(social_backend, redis, "Reads/writes hot data")
+Rel(social_backend, kafka, "Publishes domain events")
+
+Rel(feed_service, feed_store, "Reads/writes user feeds")
+Rel(kafka, feed_service, "Delivers feed events")
+
+Rel(messaging_service, message_db, "Reads/writes messages and chats")
+Rel(messaging_service, kafka, "Publishes message events")
+Rel(kafka, messaging_service, "Delivers async message events")
+
+Rel(media_service, blob_storage, "Stores media files")
+Rel(blob_storage, cdn, "Serves media through")
+
+Rel(kafka, notification_worker, "Delivers notification events")
+Rel(notification_worker, push_provider, "Sends push notifications")
+
+SHOW_LEGEND()
+@enduml
 ```
 
 ## API
 
-REST API описан в формате OpenAPI 3.0.3:
+REST API is described with OpenAPI 3.0.3: [`api/rest_api.yml`](api/rest_api.yml).
 
-- файл спецификации: `api/rest_api.yml`.
+## Database
 
-Основные группы эндпоинтов:
+Database schema is described with DBML: [`database/schema.dbml`](database/schema.dbml).
 
-- `GET /users/{userId}` - получение профиля пользователя;
-- `GET /users/{userId}/friends` - получение друзей пользователя;
-- `POST /users/{userId}/friends` - добавление друга;
-- `DELETE /users/{userId}/friends/{friendId}` - удаление друга;
-- `POST /posts` - создание поста;
-- `POST /media` - загрузка медиафайла;
-- `GET /feed` - получение домашней ленты;
-- `GET /users/{userId}/posts` - получение постов пользователя;
-- `GET /dialogs` - получение диалогов;
-- `GET /chats` - получение чатов;
-- `GET /dialogs/{dialogId}/messages` - получение сообщений диалога;
-- `POST /dialogs/{dialogId}/messages` - отправка сообщения в диалог;
-- `GET /chats/{chatId}/messages` - получение сообщений чата;
-- `POST /chats/{chatId}/messages` - отправка сообщения в чат.
+## Basic calculations
 
-Спецификацию можно открыть в любом OpenAPI-редакторе, например Swagger Editor или Redocly.
+RPS (create post):
 
-## База данных
+    DAU = 70 000 000
+    Each user creates 0.1 posts per day
+    Posts per day = 70 000 000 * 0.1 = 7 000 000
+    RPS = 7 000 000 / 86 400 ~= 82
 
-Схема базы данных описана в формате DBML:
+RPS (read feed):
 
-- файл схемы: `database/schema.dbml`.
+    DAU = 70 000 000
+    Each user views feed 20 times per day
+    Feed reads per day = 70 000 000 * 20 = 1 400 000 000
+    RPS = 1 400 000 000 / 86 400 ~= 16 204
 
-Основные таблицы:
+Incoming traffic (create post without media):
 
-- `users` - профили пользователей;
-- `posts` - публикации пользователей;
-- `comments` - комментарии к постам;
-- `chats` - личные диалоги и групповые чаты;
-- `messages` - сообщения;
-- `media` - фото, аудио и видео;
-- `relationships` - отношения между пользователями.
+    Posts per day = 7 000 000
+    Average create post request size = 2 KB
+    Incoming traffic per day = 7 000 000 * 2 KB = 14 GB/day
+    Incoming traffic per second = 14 000 MB / 86 400 ~= 0.162 MB/s
 
-Схему можно визуализировать через dbdiagram.io или другой инструмент с поддержкой DBML.
+Messages storage for 5 years:
 
-## Масштабирование данных
+    DAU = 70 000 000
+    Each user sends 20 messages per day
+    Message size = 512 B
+    Retention = 5 years
+    Messages for 5 years = 70 000 000 * 20 * 365 * 5 = 2 555 000 000 000
+    Raw storage = 2 555 000 000 000 * 512 B = 1308.16 TB
+    Storage with indexes and overhead = 1308.16 TB * 2 = 2616.32 TB
+    Physical storage with replication factor 2 = 2616.32 TB * 2 = 5232.64 TB
 
-В схеме базы данных зафиксированы базовые решения для масштабирования:
+Required HDD count:
 
-- primary-replica репликация: запись выполняется на primary-узел, чтение распределяется между read-replicas;
-- асинхронная репликация: небольшая задержка консистентности допустима ради скорости чтения и записи;
-- горизонтальное шардирование быстрорастущих сущностей:
-  - `messages` по `chat_id`;
-  - `posts` по `author_id`;
-  - `comments` по `post_id`;
-  - `likes` по `post_id`.
-
-Таблица `users` на текущем этапе не шардируется, так как основной рост нагрузки ожидается на сообщениях, постах, комментариях и лайках.
-
-## Расчёт нагрузки и хранилища
-
-### Исходные допущения
-
-Для расчётов используются следующие допущения:
-
-- `DAU = 30 000 000` активных пользователей в день;
-- среднее количество сообщений на активного пользователя: `10 messages/day`;
-- средний размер одной записи сообщения: `512 B`;
-- срок хранения сообщений: `5 лет`;
-- среднее количество создаваемых постов на активного пользователя: `0.05 posts/day`;
-- средний размер входящего запроса на создание поста без медиа: `2 KB`;
-- среднее количество чтений ленты на активного пользователя: `10 reads/day`;
-- для RPS считается средняя нагрузка без пикового коэффициента;
-- для хранения сообщений учитываются индексы и storage overhead с коэффициентом `x2`;
-- replication factor для сообщений: `2`, то есть `primary + 1 replica`;
-- полезная ёмкость одного диска: `16 TB`;
-- для хранения пятилетнего архива сообщений используются `HDD`.
-
-### Размер базы данных сообщений на 5 лет
-
-Количество сообщений за 5 лет:
-
-```text
-messages_5y = DAU * messages_per_user_per_day * 365 * 5
-messages_5y = 30 000 000 * 10 * 365 * 5
-messages_5y = 547 500 000 000 messages
-```
-
-Сырой объём хранения:
-
-```text
-raw_storage = messages_5y * message_size
-raw_storage = 547 500 000 000 * 512 B
-raw_storage = 280 320 000 000 000 B
-raw_storage = 280 320 GB
-raw_storage = 280.32 TB
-```
-
-Объём с учётом индексов и storage overhead:
-
-```text
-storage_with_overhead = raw_storage * 2
-storage_with_overhead = 280.32 TB * 2
-storage_with_overhead = 560.64 TB
-```
-
-Физический объём с учётом репликации:
-
-```text
-physical_storage = storage_with_overhead * replication_factor
-physical_storage = 560.64 TB * 2
-physical_storage = 1121.28 TB
-```
-
-Итого для хранения сообщений за 5 лет требуется примерно `1121.28 TB` физического хранилища.
-
-### Количество дисков и шардов
-
-Для расчёта используется диск полезной ёмкостью `16 TB`.
-
-Количество primary shard'ов считается по объёму данных без реплики:
-
-```text
-primary_shards = ceil(storage_with_overhead / disk_capacity)
-primary_shards = ceil(560.64 TB / 16 TB)
-primary_shards = ceil(35.04)
-primary_shards = 36
-```
-
-Так как используется replication factor `2`, каждому primary shard нужна одна replica:
-
-```text
-total_shard_copies = primary_shards * replication_factor
-total_shard_copies = 36 * 2
-total_shard_copies = 72
-```
-
-Итого:
-
-- `36` primary shard'ов;
-- `36` replica shard'ов;
-- `72` shard copies;
-- `72 HDD` по `16 TB`.
-
-### Входящий трафик на создание постов
-
-Количество создаваемых постов в день:
-
-```text
-posts_per_day = DAU * posts_per_user_per_day
-posts_per_day = 30 000 000 * 0.05
-posts_per_day = 1 500 000 posts/day
-```
-
-Входящий трафик на создание постов без учёта загрузки медиа:
-
-```text
-incoming_post_traffic_per_day = posts_per_day * post_create_request_size
-incoming_post_traffic_per_day = 1 500 000 * 2 KB
-incoming_post_traffic_per_day = 3 000 000 KB/day
-incoming_post_traffic_per_day = 3 GB/day
-```
-
-Средний входящий трафик в секунду:
-
-```text
-incoming_post_traffic_per_second = 3000 MB / 86 400 sec
-incoming_post_traffic_per_second = 0.0347 MB/s
-```
-
-Итого входящий трафик на создание постов: `3 GB/day`, или примерно `0.035 MB/s`.
-
-### RPS по созданию и чтению постов
-
-RPS на создание постов:
-
-```text
-create_posts_rps = posts_per_day / seconds_per_day
-create_posts_rps = 1 500 000 / 86 400
-create_posts_rps = 17.36 RPS
-```
-
-Итого: примерно `18 RPS` на создание постов.
-
-Количество чтений постов в день:
-
-```text
-post_reads_per_day = DAU * feed_reads_per_user_per_day
-post_reads_per_day = 30 000 000 * 10
-post_reads_per_day = 300 000 000 reads/day
-```
-
-RPS на чтение постов:
-
-```text
-read_posts_rps = post_reads_per_day / seconds_per_day
-read_posts_rps = 300 000 000 / 86 400
-read_posts_rps = 3472.22 RPS
-```
-
-Итого: примерно `3473 RPS` на чтение постов.
-
-## Как работать с проектом
-
-1. Изучить общую структуру проекта в этом файле.
-2. Открыть `api/rest_api.yml` для просмотра API-контрактов.
-3. Открыть `database/schema.dbml` для просмотра ER-модели.
-4. При необходимости импортировать:
-   - OpenAPI-спецификацию в Swagger Editor;
-   - DBML-схему в dbdiagram.io.
-
-## Статус
-
-Проект находится на этапе проектирования. В репозитории нет исполняемого backend-кода, миграций и frontend-приложения: текущий результат представляет собой документацию системного дизайна, API-контракты и модель данных.
+    Disk capacity = 16 TB
+    Primary shards = ceil(2616.32 TB / 16 TB) = 164
+    Replication factor = 2
+    Total shard copies = 164 * 2 = 328
+    Required HDD count = 328
